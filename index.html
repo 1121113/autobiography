@@ -18,3 +18,203 @@
 </body>
 </html>
 
+body {
+  background: #111;
+  color: #fff;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  background: #000;
+  border: 2px solid #555;
+  margin-top: 10px;
+}
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const COLS = 10;
+const ROWS = 20;
+const BLOCK_SIZE = 30;
+
+ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+
+const COLORS = [
+  null,
+  "cyan",
+  "blue",
+  "orange",
+  "yellow",
+  "green",
+  "purple",
+  "red",
+];
+
+const SHAPES = [
+  [],
+  [[1,1,1,1]],          // I
+  [[2,0,0],[2,2,2]],    // J
+  [[0,0,3],[3,3,3]],    // L
+  [[4,4],[4,4]],        // O
+  [[0,5,5],[5,5,0]],    // S
+  [[0,6,0],[6,6,6]],    // T
+  [[7,7,0],[0,7,7]],    // Z
+];
+
+function createMatrix(w, h) {
+  return Array.from({ length: h }, () => Array(w).fill(0));
+}
+
+let arena = createMatrix(COLS, ROWS);
+
+const player = {
+  pos: { x: 0, y: 0 },
+  matrix: null,
+};
+
+function drawMatrix(matrix, offset) {
+  matrix.forEach((row, y) => {
+    row.forEach((value, x) => {
+      if (value !== 0) {
+        ctx.fillStyle = COLORS[value];
+        ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+      }
+    });
+  });
+}
+
+function collide(arena, player) {
+  const m = player.matrix;
+  const o = player.pos;
+  for (let y = 0; y < m.length; y++) {
+    for (let x = 0; x < m[y].length; x++) {
+      if (
+        m[y][x] !== 0 &&
+        (arena[y + o.y] &&
+         arena[y + o.y][x + o.x]) !== 0
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function merge(arena, player) {
+  player.matrix.forEach((row, y) => {
+    row.forEach((value, x) => {
+      if (value !== 0) {
+        arena[y + player.pos.y][x + player.pos.x] = value;
+      }
+    });
+  });
+}
+
+function rotate(matrix) {
+  return matrix[0].map((_, i) =>
+    matrix.map(row => row[i]).reverse()
+  );
+}
+
+function playerReset() {
+  const type = Math.floor(Math.random() * 7) + 1;
+  player.matrix = SHAPES[type];
+  player.pos.y = 0;
+  player.pos.x =
+    ((COLS / 2) | 0) - ((player.matrix[0].length / 2) | 0);
+
+  if (collide(arena, player)) {
+    arena = createMatrix(COLS, ROWS);
+  }
+}
+
+function arenaSweep() {
+  outer: for (let y = arena.length - 1; y >= 0; y--) {
+    for (let x = 0; x < arena[y].length; x++) {
+      if (arena[y][x] === 0) {
+        continue outer;
+      }
+    }
+    arena.splice(y, 1);
+    arena.unshift(Array(COLS).fill(0));
+  }
+}
+
+function playerDrop() {
+  player.pos.y++;
+  if (collide(arena, player)) {
+    player.pos.y--;
+    merge(arena, player);
+    arenaSweep();
+    playerReset();
+  }
+}
+
+function playerMove(dir) {
+  player.pos.x += dir;
+  if (collide(arena, player)) {
+    player.pos.x -= dir;
+  }
+}
+
+function playerRotate() {
+  const rotated = rotate(player.matrix);
+  const old = player.matrix;
+  player.matrix = rotated;
+  if (collide(arena, player)) {
+    player.matrix = old;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawMatrix(arena, { x: 0, y: 0 });
+  drawMatrix(player.matrix, player.pos);
+}
+
+let dropCounter = 0;
+let dropInterval = 500;
+let lastTime = 0;
+
+function update(time = 0) {
+  const deltaTime = time - lastTime;
+  lastTime = time;
+
+  dropCounter += deltaTime;
+  if (dropCounter > dropInterval) {
+    playerDrop();
+    dropCounter = 0;
+  }
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") playerMove(-1);
+  if (e.key === "ArrowRight") playerMove(1);
+  if (e.key === "ArrowDown") playerDrop();
+  if (e.key === "ArrowUp") playerRotate();
+});
+
+playerReset();
+update();
+
+# 🎮 Tetris 俄羅斯方塊
+
+使用 HTML5 Canvas + JavaScript 製作的簡易俄羅斯方塊遊戲。
+
+## 操作方式
+- ⬅️ / ➡️：左右移動
+- ⬆️：旋轉
+- ⬇️：加速下落
+
+## 執行方式
+直接用瀏覽器打開 `index.html`
+
+## Demo
+可部署到 GitHub Pages
+
