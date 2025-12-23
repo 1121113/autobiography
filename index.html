@@ -12,10 +12,6 @@
       font-family: Arial, sans-serif;
     }
 
-    h1 {
-      margin-top: 20px;
-    }
-
     canvas {
       background: #000;
       border: 3px solid #555;
@@ -32,10 +28,12 @@
 
 <body>
   <h1>🎮 俄羅斯方塊 Tetris</h1>
+  <p>分數：<span id="score">0</span></p>
   <canvas id="game" width="300" height="600"></canvas>
 
   <div class="info">
-    ⬅️ ➡️ 移動　⬆️ 旋轉　⬇️ 加速
+    ⬅️ ➡️ 移動　⬆️ 旋轉　⬇️ 加速<br>
+    Game Over 後按 Enter 重新開始
   </div>
 
   <script>
@@ -53,24 +51,19 @@
 
     const COLORS = [
       null,
-      "cyan",
-      "blue",
-      "orange",
-      "yellow",
-      "green",
-      "purple",
-      "red",
+      "cyan", "blue", "orange", "yellow",
+      "green", "purple", "red"
     ];
 
     const SHAPES = [
       [],
-      [[1, 1, 1, 1]],              // I
-      [[2, 0, 0],[2, 2, 2]],        // J
-      [[0, 0, 3],[3, 3, 3]],        // L
-      [[4, 4],[4, 4]],              // O
-      [[0, 5, 5],[5, 5, 0]],        // S
-      [[0, 6, 0],[6, 6, 6]],        // T
-      [[7, 7, 0],[0, 7, 7]]         // Z
+      [[1, 1, 1, 1]],
+      [[2, 0, 0],[2, 2, 2]],
+      [[0, 0, 3],[3, 3, 3]],
+      [[4, 4],[4, 4]],
+      [[0, 5, 5],[5, 5, 0]],
+      [[0, 6, 0],[6, 6, 6]],
+      [[7, 7, 0],[0, 7, 7]]
     ];
 
     /* =====================
@@ -84,8 +77,11 @@
 
     const player = {
       pos: { x: 0, y: 0 },
-      matrix: null
+      matrix: null,
+      score: 0
     };
+
+    let gameOver = false;
 
     /* =====================
        繪圖
@@ -95,12 +91,7 @@
         row.forEach((value, x) => {
           if (value !== 0) {
             ctx.fillStyle = COLORS[value];
-            ctx.fillRect(
-              x + offset.x,
-              y + offset.y,
-              1,
-              1
-            );
+            ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
           }
         });
       });
@@ -112,6 +103,20 @@
 
       drawMatrix(arena, { x: 0, y: 0 });
       drawMatrix(player.matrix, player.pos);
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, 0, COLS, ROWS);
+
+        ctx.fillStyle = "red";
+        ctx.font = "1px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", COLS / 2, ROWS / 2 - 2);
+
+        ctx.fillStyle = "white";
+        ctx.fillText(`分數：${player.score}`, COLS / 2, ROWS / 2);
+        ctx.fillText("按 Enter 重新開始", COLS / 2, ROWS / 2 + 2);
+      }
     }
 
     /* =====================
@@ -163,11 +168,12 @@
         ((player.matrix[0].length / 2) | 0);
 
       if (collide(arena, player)) {
-        arena = createMatrix(COLS, ROWS); // Game Over → 重置
+        gameOver = true;
       }
     }
 
     function playerMove(dir) {
+      if (gameOver) return;
       player.pos.x += dir;
       if (collide(arena, player)) {
         player.pos.x -= dir;
@@ -175,16 +181,17 @@
     }
 
     function playerRotate() {
+      if (gameOver) return;
       const rotated = rotate(player.matrix);
       const prev = player.matrix;
       player.matrix = rotated;
-
       if (collide(arena, player)) {
         player.matrix = prev;
       }
     }
 
     function playerDrop() {
+      if (gameOver) return;
       player.pos.y++;
       if (collide(arena, player)) {
         player.pos.y--;
@@ -195,17 +202,25 @@
     }
 
     /* =====================
-       消行
+       消行 + 分數
     ====================== */
     function arenaSweep() {
+      let lines = 0;
+
       outer: for (let y = arena.length - 1; y >= 0; y--) {
         for (let x = 0; x < arena[y].length; x++) {
-          if (arena[y][x] === 0) {
-            continue outer;
-          }
+          if (arena[y][x] === 0) continue outer;
         }
         arena.splice(y, 1);
         arena.unshift(Array(COLS).fill(0));
+        lines++;
+        y++;
+      }
+
+      const scoreTable = [0, 100, 300, 500, 800];
+      if (lines > 0) {
+        player.score += scoreTable[lines];
+        document.getElementById("score").textContent = player.score;
       }
     }
 
@@ -217,10 +232,15 @@
     let lastTime = 0;
 
     function update(time = 0) {
+      if (gameOver) {
+        draw();
+        return;
+      }
+
       const deltaTime = time - lastTime;
       lastTime = time;
-
       dropCounter += deltaTime;
+
       if (dropCounter > dropInterval) {
         playerDrop();
         dropCounter = 0;
@@ -231,9 +251,29 @@
     }
 
     /* =====================
+       重新開始
+    ====================== */
+    function restartGame() {
+      arena = createMatrix(COLS, ROWS);
+      player.score = 0;
+      document.getElementById("score").textContent = 0;
+      gameOver = false;
+      playerReset();
+      lastTime = 0;
+      update();
+    }
+
+    /* =====================
        鍵盤控制
     ====================== */
     document.addEventListener("keydown", e => {
+      if (gameOver && e.key === "Enter") {
+        restartGame();
+        return;
+      }
+
+      if (gameOver) return;
+
       if (e.key === "ArrowLeft") playerMove(-1);
       if (e.key === "ArrowRight") playerMove(1);
       if (e.key === "ArrowDown") playerDrop();
