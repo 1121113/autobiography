@@ -28,7 +28,12 @@
 
 <body>
   <h1>🎮 俄羅斯方塊 Tetris</h1>
-  <p>分數：<span id="score">0</span></p>
+
+  <p>
+    歷史最高分：<span id="highScore">0</span><br>
+    目前分數：<span id="score">0</span>
+  </p>
+
   <canvas id="game" width="300" height="600"></canvas>
 
   <div class="info">
@@ -82,6 +87,16 @@
     };
 
     let gameOver = false;
+
+    /* =====================
+       最高分（localStorage）
+    ====================== */
+    let highScore = localStorage.getItem("tetrisHighScore");
+    if (!highScore) {
+      highScore = 0;
+      localStorage.setItem("tetrisHighScore", 0);
+    }
+    document.getElementById("highScore").textContent = highScore;
 
     /* =====================
        繪圖
@@ -168,6 +183,12 @@
         ((player.matrix[0].length / 2) | 0);
 
       if (collide(arena, player)) {
+        // 更新最高分
+        if (player.score > highScore) {
+          highScore = player.score;
+          localStorage.setItem("tetrisHighScore", highScore);
+          document.getElementById("highScore").textContent = highScore;
+        }
         gameOver = true;
       }
     }
@@ -288,5 +309,4 @@
   </script>
 </body>
 </html>
-
 
